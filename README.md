@@ -1,107 +1,97 @@
-DiskOS: Virtual File System Allocation Engine
-An advanced, high-fidelity in-memory simulation of an operating system storage sub-architecture. Architected in C++, DiskOS serves as a functional implementation of the bridge between logical user abstractions (hierarchical directories) and bare-metal physical storage structures (contiguous disk sectors).
+# 2.1 Project Title
+**DiskOS: Virtual File System Engine**
 
-Drawing engineering inspirations from file systems such as Linux's ext4 and Windows' NTFS, this engine showcases the orchestration of multiple foundational Data Structures and Algorithms (DSA) working simultaneously to solve core OS problems: linear directory scaling bottlenecks, background task scheduling overheads, fragmented block prioritization, constant-time metadata retrieval, and optimal layout sector management.
+---
 
-🏛 Structural Architecture & System Topology
-DiskOS decouples operations into a distinct dual-layer topology. This completely prevents synchronization corruption by separating how a user views a file path from how the hardware storage controller maps data sectors across raw block arrays.
+# 2.2 Problem Statement
+Modern operating systems require highly efficient, low-latency mechanisms to manage hierarchical file structures, schedule background maintenance tasks, and track historical user actions. The challenge is to build a robust, in-memory simulation of a file system that effectively bridges logical directory abstractions with systematic process scheduling without suffering from memory leaks or excessive performance overhead.
 
-Plaintext
-========================================================================================
-                                   LOGICAL VISUALIZATION LAYER
-========================================================================================
-                                           Root (/) 
-                                        [Folder Node]
-                                       /             \
-                                      /               \
-                              Documents/               Photos/
-                            [Folder Node]           [Folder Node]
-                            /           \                |
-                           /             \               |
-                     resume.pdf       report.docx   vacation.png
-                     [File Specs]     [File Specs]   [File Specs]
-                          │                │              │
-==========================┼────────────────┼──────────────┼=============================
-                          ▼                ▼              ▼
-========================================================================================
-                          PHYSICAL ALLOCATION & BLOCK CONTROL MATRIX
-========================================================================================
-    [X] = Sector Occupied (True)                      [.] = Sector Free / Contiguous (False)
-    
-    00-19:  [X][X][X][X][X][.][.][.][.][.][.][.][.][.][.][X][X][X][X][X]  <- (Sectors 0-19)
-    20-39:  [.][.][.][.][.][.][.][.][.][.][.][.][.][.][.][.][.][.][.][.]  <- (Sectors 20-39)
-    40-59:  [X][X][X][.][.][.][.][.][.][.][.][.][.][.][.][.][.][.][.][.]  <- (Sectors 40-59)
-    60-79:  [.][.][.][.][.][.][.][.][.][.][.][.][.][.][.][.][.][.][.][.]  <- (Sectors 60-79)
-    80-99:  [.][.][.][.][.][.][.][.][.][.][.][.][.][.][.][.][.][.][.][.]  <- (Sectors 80-99)
-========================================================================================
-The Logical Layer (Hierarchical Tree): Manages directory tracking, nested subdirectories, naming parameters, and metadata attributes without needing to know where the bytes physically exist on the storage disk.
+---
 
-The Physical Layer (Allocation Matrix): A low-level bounded sequence mapping physical block indices (00 to 99). Handles sector indexing, continuity integrity, and physical fragmentation scores.
+# 2.3 Objectives
+* **Simulate Hierarchical Storage:** Create a dynamic directory and file tracking system using a custom N-ary tree.
+* **Orchestrate Background Processes:** Implement a non-blocking task scheduler to handle system maintenance.
+* **Enable Action Reversal:** Provide a robust "Undo" mechanism to revert recent system changes.
+* **Ensure Memory Safety:** Develop a secure teardown sequence to prevent RAM leaks upon system exit.
 
-⚙️ Subsystem Breakdown (The 13 Core Runtime Options)
-The system exposes an interactive administrative command menu comprising 13 specialized functional routines:
+---
 
-1. Create Folder
-Data Structure: N-ary Tree Node Initialization.
+# 2.4 System Overview / Architecture
+DiskOS utilizes a modular, dual-layer architecture:
+1. **Logical Abstraction Layer:** Manages the user-facing hierarchical tree, allowing the creation of nested folders and files, and facilitating navigation via standard commands (like `cd`).
+2. **Process Management Layer:** Operates parallel to the file tree, managing asynchronous background tasks via a linear pipeline and tracking global state changes to allow instant action reversals.
 
-Mechanism: Dynamically allocates a unique heap-bound Folder instance within RAM. It inserts the newly spawned node reference into the current working directory's child tracking pointer array and establishes a structural uplink (parent*) back to the originating directory node to support future upstream nested path traversals (..).
+---
 
-2. Create File (Auto Contiguous Block Allocation)
-Data Structure: First-Fit Contiguous Sector Placement Strategy.
+# 2.5 Data Structures and Algorithms Used
+* **N-ary Tree:** Used to build the core directory structure where each folder (node) can hold multiple subfolders and files.
+* **Standard Queue (`std::queue`):** A First-In, First-Out (FIFO) structure used to queue and process background OS tasks in strict chronological order.
+* **Standard Stack (`std::stack`):** A Last-In, First-Out (LIFO) structure used to maintain a history of actions, enabling the "Undo Last Action" feature.
+* **Hash Map / Tree Map (`std::map`):** Used for indexing directory paths to achieve logarithmic traversal speeds.
 
-Mechanism: Translates abstract logical files into bounded hardware entities. The engine enforces an OS allocation limit: every 10KB of user file payload requires 1 physical block sector. It performs a linear scan across the 100-sector logical disk array to discover the first sequence of unallocated contiguous blocks sufficient to store the total size. If verified, it tags the sectors as occupied (true) and writes the boundary properties (startBlock and blockCount) straight to the file's primary descriptor token.
+---
 
-3. Display Current Directory
-Data Structure: Multi-Vector Linear Iteration.
+# 2.6 Implementation Approach
+The project is implemented in modern C++ and adheres to object-oriented programming (OOP) principles. The system is split into multiple files (e.g., `main.cpp` for the driver menu and `FileSystem.cpp` for engine logic) to separate declarations from implementations. The user interacts through a continuous `while` loop interface, which maps standard I/O inputs to specific data structure operations (e.g., pushing to a queue, allocating a tree node, or popping from a stack).
 
-Mechanism: Queries the active directory folder context and loops through its collections of subfolder references and file pointers. If no nodes are registered, the output catches the state and prints clean notification signals ((none)).
+---
 
-4. Change Directory (cd)
-Data Structure: Logarithmic Balanced Search Tree Index Mapping.
+# 2.7 Time and Space Complexity Analysis
 
-Mechanism: Rather than forcing a slow linear path-matching traversal from the root down to deep nested levels, DiskOS queries a specialized std::map index. This map stores global string paths mapped directly to folder memory points. This achieves high-speed directory changes in O(log N) time complexity. It also handles the parent navigation keyword (..) to drop down one level in constant time.
+| Operation / Feature | Data Structure | Time Complexity | Space Complexity |
+| :--- | :--- | :--- | :--- |
+| **Create Folder / File** | N-ary Tree Node | O(1) | O(1) per node |
+| **Change Directory (cd)** | Balanced Search Tree (`map`) | O(log N) | O(N) |
+| **Add Background Task** | FIFO Queue (`std::queue`) | O(1) | O(T) tasks |
+| **Process Task** | FIFO Queue (`std::queue`) | O(1) | O(1) |
+| **Undo Last Action** | LIFO Stack (`std::stack`) | O(1) | O(A) actions |
+| **Display Directory** | Dynamic Array (`std::vector`) | O(C) children | O(1) |
 
-5. Add Background Task (FIFO Queue)
-Data Structure: Standard FIFO Ring Buffer Insertion.
+---
 
-Mechanism: Simulates asynchronous operating system maintenance pipelines (such as system log syncs, cache purges, or routine indexing). Tasks are injected into the back boundary of a linear pipeline queue (std::queue), locking their chronological execution order.
+# 2.8 Execution Steps
+To compile and execute the project locally, follow these terminal commands:
 
-6. Process Background Task
-Data Structure: FIFO Element Dequeue & Processing.
+1. **Clone the repository:**
+   `git clone https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git`
+2. **Navigate to the directory:**
+   `cd YOUR_REPO_NAME`
+3. **Compile the source files:**
+   `clang++ main.cpp FileSystem.cpp -o vfs_app`
+   *(Note: Use `g++` if compiling on a Linux/Windows GCC environment).*
+4. **Run the executable:**
+   `./vfs_app`
 
-Mechanism: Pulls the oldest pending maintenance item from the head boundary of the scheduling pipeline queue. It executes the task simulator and frees the space. If option 6 is executed when no tasks exist, it guards against crash conditions by throwing an explicit state alert (Formatting queue is empty).
+---
 
-7. Report Disk Block Health
-Data Structure: Max-Heap Ingestion Engine.
+# 2.9 Sample Inputs and Outputs
 
-Mechanism: Collects telemetry metrics detailing storage block corruption levels or fragmentation scores (on a strict scale from 0 to 100%). These entries are pushed into a high-performance priority sorting heap (std::priority_queue).
+**Input Sequence:**
+```text
+Enter choice: 1
+Enter folder name: Documents
+Enter choice: 5
+Enter task name: Clear_Cache
+Enter choice: 6
 
-8. Run Smart Defragmenter
-Data Structure: Max-Heap Extract-Max Routine (O(log K) Sorting).
+Folder 'Documents' created successfully.
+Background task 'Clear_Cache' added to queue.
+Processing background task: Clear_Cache ... Done!
 
-Mechanism: Modern OS defragmenters must optimize hardware lifetimes by prioritizing the messiest sectors first. DiskOS pulls the absolute top element from its priority heap matrix. Because of internal binary max-heap rules, the top node is mathematically guaranteed to hold the highest fragmentation percentage, focusing processing power exactly where it is most desperately needed.
+2.10 Screenshots
 
-9. Instant File Lookup by ID
-Data Structure: Constant Time O(1) Hash Table Lookup.
+Main Menu Interface: ![<img width="1470" height="956" alt="Screenshot 2026-06-14 at 4 49 02 PM" src="https://github.com/user-attachments/assets/531297ad-1018-4628-b842-c7df3a81d5b3" />
+)
 
-Mechanism: Bypasses the directory structure completely. It runs a hash function against the provided string unique key within a master global tracking container (std::unordered_map). If the file ID is valid, it retrieves the block location boundaries instantly, matching how modern Master File Tables (MFT) retrieve information without iterating through folders.
+Directory Display Output: ![Directory Screenshot](<img width="1470" height="956" alt="Screenshot 2026-06-14 at 4 50 44 PM" src="https://github.com/user-attachments/assets/23e0116d-404b-49c5-abb3-8999e7d0bf20" />
+)
 
-10. Fastest Search by Name
-Data Structure: Tree-Based Breadth-First Search (BFS) / Level-Order Traversal.
+2.11 Results and Observations
+Performance: The integration of std::map drastically reduced the time required to change directories compared to linear path-matching algorithms.
 
-Mechanism: When searching for a file by name without knowing its path, the engine initiates a queue-driven BFS search. Starting from the absolute root directory (/), it scans every file in the current tier before pushing child subfolders into an internal search queue to advance to the next level down. This tracks the shortest structural directory path to the requested file name.
+Reliability: The FIFO queue successfully prevented task execution overlap, mimicking a true OS background scheduler.
 
-11. Delete File (Triggers Deletion Balancer)
-Data Structure: Dynamic Contiguous Memory Reclaiming and Deregistration.
+State Management: The stack-based undo system reliably reversed directory creations without corrupting the overall N-ary tree structure.
 
-Mechanism: Locates the file inside the local directory vector array, references its hardware boundaries (startBlock to startBlock + blockCount), and resets those physical disk sectors back to false (free). The Deletion Balancer algorithm ensures that blocks are wiped cleanly in sequence, instantly creating maximum unified contiguous storage availability for new incoming writes. It then wipes the file from the global Hash Table and deletes the raw pointer to prevent memory leaks.
-
-12. View Physical Disk Layout Matrix
-Data Structure: State Vector Bitmask Visualization.
-
-Mechanism: Renders a comprehensive 20 x 5 textual visual grid representing the 100 physical disk sectors. Occupied sectors print as [X], while free contiguous sectors print as [.], providing an immediate visual snapshot of drive utilization and fragmentation layout.
-
-13. Exit (Graceful Systemic Shutdown)
-Data Structure: Post-Order Recursive Memory Disassembly.
-
-Mechanism: Shuts down the operating system engine safely. To guarantee absolute compliance with robust C++ resource standards, it calls an explicit recursive tracking routine (clearTree) that clears memory from the bottom leaf elements up to the root, completely purging all allocated objects from RAM before ending the execution context.
+2.12 Conclusion
+The DiskOS Virtual File System successfully demonstrates the practical application of fundamental Data Structures and Algorithms in system-level software. By combining Trees, Queues, and Stacks, the engine provides an efficient, leak-free, and highly responsive simulation of modern operating system behaviors.
